@@ -1,0 +1,93 @@
+name: Build OpenSIPS APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      opensips_version:
+        description: 'OpenSIPS version (e.g. 3.4.4)'
+        required: true
+        default: '3.4.4'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Alpine SDK
+        run: |
+          apk update
+          apk add alpine-sdk sudo
+
+      - name: Create builder user
+        run: |
+          adduser -D -G abuild builder
+          echo "builder ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/builder
+          mkdir -p /home/builder/build/opensips
+          chown -R builder:abuild /home/builder
+
+      - name: Generate signing key
+        run: su - builder -s /bin/sh -c "abuild-keygen -a -i"
+
+      - name: Write APKBUILD
+        env:
+          PKGVER: ${{ github.event.inputs.opensips_version }}
+        run: |
+          cat > /home/builder/build/opensips/APKBUILD <<EOF
+          pkgname="opensips"
+          pkgver="${PKGVER}"
+          pkgrel=0
+          pkgdesc="OpenSIPS SIP Proxy (SQLite destekli)"
+          url="https://opensips.org"
+          arch="all"
+          license="GPL-2.0"
+          depends="sqlite-libs"
+          makedepends="build-base flex bison ncurses-dev openssl-dev pcre-dev sqlite-dev linux-headers"
+          source="https://opensips.org/pub/opensips/\${pkgver}/opensips-\${pkgver}.tar.gz"
+          builddir="\$srcdir/opensips-\${pkgver}"
+
+          build() {
+              cd "\$builddir"
+              make prefix=/usr cfg_prefix=/etc/opensips include_modules="db_sqlite" all
+          }
+
+          package() {
+              cd "\$builddir"
+              make prefix=/usr cfg_prefix=/etc/opensips basedir="\$pkgdir" include_modules="db_sqlite" install
+          }
+          EOF
+          sed -i 's/^          //' /home/builder/build/opensips/APKBUILD
+          chown builder:abuild /home/builder/build/opensips/APKBUILD
+
+      - name: Verify APKBUILD
+        run: cat /home/builder/build/opensips/APKBUILD
+
+      - name: Fetch checksum
+        run: su - builder -s /bin/sh -c "cd /home/builder/build/opensips && abuild checksum"
+
+      - name: Build APK
+        run: su - builder -s /bin/sh -c "cd /home/builder/build/opensips && abuild -r"
+
+      - name: List output
+        run: find /home/builder/packages -name "*.apk" | tee /tmp/apk_list.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensips-${{ github.event.inputs.opensips_version }}-apk
+          path: /home/builder/packages/**/*.apk
+          if-no-files-found: error
+
+      - name: Update last built version
+        run: |
+          VERSION="${{ github.event.inputs.opensips_version }}"
+          echo "$VERSION" > .last_built_version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .last_built_version
+          git commit -m "chore: bump last built OpenSIPS to $VERSION [skip ci]"
+          git push
