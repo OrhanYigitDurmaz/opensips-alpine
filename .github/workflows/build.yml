@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       opensips_version:
-        description: "OpenSIPS version (e.g. 3.4.4)"
+        description: "OpenSIPS version (e.g. 3.6.4)"
         required: true
-        default: "3.4.4"
+        default: "3.6.4"
 
 jobs:
   build:
