@@ -46,7 +46,8 @@ jobs:
           arch="all"
           license="GPL-2.0"
           depends="sqlite-libs"
-          makedepends="build-base flex bison ncurses-dev openssl-dev pcre-dev sqlite-dev linux-headers"
+          makedepends="build-base flex bison ncurses-dev openssl-dev pcre-dev sqlite-dev linux-headers glib-dev"
+          options="!check"
           source="https://opensips.org/pub/opensips/\${pkgver}/opensips-\${pkgver}.tar.gz"
           builddir="\$srcdir/opensips-\${pkgver}"
 
@@ -59,7 +60,7 @@ jobs:
           package() {
               cd "\$builddir"
               export CFLAGS="\$CFLAGS -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -Wno-error=implicit-function-declaration"
-              make prefix=/usr cfg_prefix=/etc/opensips basedir="\$pkgdir" include_modules="db_sqlite" install
+              make prefix=/usr cfg_prefix=/etc/opensips cfg_target="\$pkgdir/etc/opensips" basedir="\$pkgdir" include_modules="db_sqlite" install
           }
           EOF
           sed -i 's/^          //' /home/builder/build/opensips/APKBUILD
