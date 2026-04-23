@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       opensips_version:
-        description: 'OpenSIPS version (e.g. 3.4.4)'
+        description: "OpenSIPS version (e.g. 3.4.4)"
         required: true
-        default: '3.4.4'
+        default: "3.4.4"
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
           chown -R builder:abuild /home/builder
 
       - name: Generate signing key
-        run: su - builder -s /bin/sh -c "abuild-keygen -a -i"
+        run: su - builder -s /bin/sh -c "abuild-keygen -a -i -n"
 
       - name: Write APKBUILD
         env:
